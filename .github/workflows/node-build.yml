@@ -1,0 +1,97 @@
+name: Node.js Build & Test
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: 'Node.js version'
+        type: string
+        default: '20'
+      package-manager:
+        description: 'Package manager: npm, pnpm, or yarn'
+        type: string
+        default: 'npm'
+      build-script:
+        description: 'npm script to run for build'
+        type: string
+        default: 'build'
+      test-script:
+        description: 'npm script to run for tests'
+        type: string
+        default: 'test'
+      skip-build:
+        description: 'Skip the build step'
+        type: boolean
+        default: false
+      test-args:
+        description: 'Additional arguments for the test command'
+        type: string
+        default: ''
+      coverage-upload:
+        description: 'Upload coverage report via Codecov'
+        type: boolean
+        default: false
+      working-directory:
+        description: 'Project subdirectory'
+        type: string
+        default: '.'
+      artifact-path:
+        description: 'Path to upload as artifact (skipped if empty)'
+        type: string
+        default: ''
+      artifact-name:
+        description: 'Name for the uploaded artifact'
+        type: string
+        default: 'build-output'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        if: inputs.package-manager == 'pnpm'
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Set up Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: ${{ inputs.package-manager }}
+
+      - name: Install dependencies (npm)
+        if: inputs.package-manager == 'npm'
+        run: npm ci
+
+      - name: Install dependencies (pnpm)
+        if: inputs.package-manager == 'pnpm'
+        run: pnpm install --frozen-lockfile
+
+      - name: Install dependencies (yarn)
+        if: inputs.package-manager == 'yarn'
+        run: yarn --frozen-lockfile
+
+      - name: Build
+        if: inputs.skip-build != true
+        run: ${{ inputs.package-manager }} run ${{ inputs.build-script }}
+
+      - name: Test
+        run: ${{ inputs.package-manager }} run ${{ inputs.test-script }} ${{ inputs.test-args }}
+
+      - name: Upload coverage
+        if: inputs.coverage-upload
+        uses: codecov/codecov-action@v4
+
+      - name: Upload build artifacts
+        if: inputs.artifact-path != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.working-directory }}/${{ inputs.artifact-path }}

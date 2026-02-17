@@ -1,0 +1,59 @@
+name: Create GitHub Release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Git tag for the release (e.g. v1.2.3)'
+        type: string
+        required: true
+      artifact-name:
+        description: 'Name of artifact to download from a prior job'
+        type: string
+        default: ''
+      artifact-path:
+        description: 'Path pattern for files to attach to the release'
+        type: string
+        default: 'dist/'
+      release-notes:
+        description: 'Custom release notes body text'
+        type: string
+        default: ''
+      generate-notes:
+        description: 'Auto-generate release notes from commits'
+        type: boolean
+        default: true
+      draft:
+        description: 'Create as draft release'
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Mark as prerelease'
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        if: inputs.artifact-name != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.artifact-path }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          body: ${{ inputs.release-notes }}
+          generate_release_notes: ${{ inputs.release-notes == '' && inputs.generate-notes }}
+          draft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          files: ${{ inputs.artifact-path }}**/*

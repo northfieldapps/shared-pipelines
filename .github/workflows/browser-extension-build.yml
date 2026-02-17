@@ -1,0 +1,99 @@
+name: Browser Extension Build & Package
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: 'Node.js version'
+        type: string
+        default: '20'
+      build-script:
+        description: 'npm build script'
+        type: string
+        default: 'build'
+      chrome-manifest:
+        description: 'Path to Chrome-specific manifest (if separate from default)'
+        type: string
+        default: ''
+      skip-npm-build:
+        description: 'Skip Node setup, npm install, and npm build'
+        type: boolean
+        default: false
+      chrome-build-script:
+        description: 'Path to shell script for Chrome build'
+        type: string
+        default: ''
+      firefox-build-script:
+        description: 'Path to shell script for Firefox build'
+        type: string
+        default: ''
+      chrome-artifact:
+        description: 'Chrome output zip filename'
+        type: string
+        default: 'chrome-extension.zip'
+      firefox-artifact:
+        description: 'Firefox output zip filename'
+        type: string
+        default: 'firefox-extension.zip'
+      artifact-name:
+        description: 'Name for the uploaded artifact'
+        type: string
+        default: 'extension'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ inputs.node-version }}
+        if: inputs.skip-npm-build != true
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        if: inputs.skip-npm-build != true
+        run: npm ci
+
+      - name: Build extension
+        if: inputs.skip-npm-build != true
+        run: npm run ${{ inputs.build-script }}
+
+      - name: Use Chrome-specific manifest
+        if: inputs.skip-npm-build != true && inputs.chrome-manifest != ''
+        run: cp "${{ inputs.chrome-manifest }}" dist/manifest.json
+
+      - name: Run Chrome build script
+        if: inputs.chrome-build-script != ''
+        run: |
+          chmod +x "${{ inputs.chrome-build-script }}"
+          ./${{ inputs.chrome-build-script }}
+
+      - name: Run Firefox build script
+        if: inputs.firefox-build-script != ''
+        run: |
+          chmod +x "${{ inputs.firefox-build-script }}"
+          ./${{ inputs.firefox-build-script }}
+
+      - name: Package Chrome extension
+        if: inputs.skip-npm-build != true
+        run: |
+          cd dist
+          zip -r ../chrome-extension.zip .
+
+      - name: Package Firefox extension
+        if: inputs.skip-npm-build != true
+        run: |
+          cd dist
+          zip -r ../firefox-extension.zip .
+
+      - name: Upload extension artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: |
+            ${{ inputs.chrome-artifact }}
+            ${{ inputs.firefox-artifact }}

@@ -1,0 +1,49 @@
+name: Java Maven Build & Test
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: 'JDK version'
+        type: string
+        default: '21'
+      java-distribution:
+        description: 'JDK distribution'
+        type: string
+        default: 'temurin'
+      maven-args:
+        description: 'Maven command arguments'
+        type: string
+        default: '-B verify'
+      working-directory:
+        description: 'Subdirectory containing pom.xml'
+        type: string
+        default: '.'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ inputs.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ inputs.java-version }}
+          distribution: ${{ inputs.java-distribution }}
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn ${{ inputs.maven-args }}
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: ${{ inputs.working-directory }}/**/target/surefire-reports/
+          if-no-files-found: ignore
