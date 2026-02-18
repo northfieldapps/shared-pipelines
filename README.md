@@ -136,6 +136,40 @@ jobs:
 
 ---
 
+### `release-to-shared-repo.yml` — Publish to northfieldapps/releases
+
+Publish a release (notes + artifacts) from any client repo to the shared public `northfieldapps/releases` repo. Tags in the shared repo are namespaced as `<app-name>-<tag>` to avoid conflicts between repos.
+
+| Input | Type | Default | Description |
+|---|---|---|---|
+| `app-name` | string | *required* | App/component name. Used in the title and to prefix the tag in the shared repo. |
+| `tag` | string | `''` | Git tag (e.g. `v1.2.3`). Defaults to the triggering ref name. |
+| `release-title` | string | `''` | Full release title. Overrides auto-generated `<app-name> <tag>`. |
+| `release-notes` | string | `''` | Inline release notes body. Takes priority over `release-notes-file`. |
+| `release-notes-file` | string | `'RELEASE_NOTES.md'` | Path to a Markdown notes file. Falls back to `--generate-notes` if absent. |
+| `artifact-name` | string | `''` | Artifact to download from a prior workflow job. |
+| `artifact-path` | string | `'dist/'` | Local path where artifacts are located or will be downloaded to. |
+| `prerelease` | boolean | `false` | Mark as pre-release. |
+| `draft` | boolean | `false` | Create as draft. |
+
+| Secret | Description |
+|---|---|
+| `PUBLIC_RELEASE_PAT` | PAT with write access to `northfieldapps/releases`. Required in all client repos. |
+
+```yaml
+jobs:
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    uses: <org>/shared-pipelines/.github/workflows/release-to-shared-repo.yml@main
+    with:
+      app-name: my-app
+      artifact-name: build-output
+    secrets: inherit
+```
+
+---
+
 ### `github-release.yml` — Create GitHub Release
 
 Create a GitHub release with auto-generated notes and uploaded artifacts.
